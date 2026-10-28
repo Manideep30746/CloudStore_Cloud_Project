@@ -1,0 +1,48 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudstore-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudstore-backend
+  template:
+    metadata:
+      labels:
+        app: cloudstore-backend
+    spec:
+      containers:
+        - name: backend
+          image: cloudstore-backend
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DB_HOST
+              value: cloudstore-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: postgres
+            - name: DB_NAME
+              value: cloudstore
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstore-db-secret
+                  key: DB_PASSWORD
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudstore-backend
+spec:
+  type: NodePort
+  selector:
+    app: cloudstore-backend
+  ports:
+    - port: 5000
+      targetPort: 5000
+

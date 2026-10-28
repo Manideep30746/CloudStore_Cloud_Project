@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudStore | Inventory Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>CloudStore</h1>
+            <p>Inventory & Order Management</p>
+        </div>
+        <span id="connection">Checking connection...</span>
+    </header>
+
+    <main>
+        <section class="stats">
+            <article class="card">
+                <p>Total Products</p>
+                <h2 id="productCount">—</h2>
+            </article>
+            <article class="card">
+                <p>Total Stock</p>
+                <h2 id="stockCount">—</h2>
+            </article>
+            <article class="card">
+                <p>Total Orders</p>
+                <h2 id="orderCount">—</h2>
+            </article>
+        </section>
+
+        <section class="card">
+            <div class="section-heading">
+                <h2>Inventory</h2>
+                <button onclick="loadData()">Refresh</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Product</th>
+                            <th>Price (₹)</th>
+                            <th>Available Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products">
+                        <tr><td colspan="4">Loading products...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Add Product</h2>
+            <form id="productForm">
+                <label>
+                    Product name
+                    <input id="name" type="text" required maxlength="100">
+                </label>
+                <label>
+                    Price (₹)
+                    <input id="price" type="number" min="0.01"
+                           step="0.01" required>
+                </label>
+                <label>
+                    Initial stock
+                    <input id="stock" type="number" min="0"
+                           step="1" required>
+                </label>
+                <button type="submit">Add Product</button>
+            </form>
+            <p id="productMessage" class="message"></p>
+        </section>
+
+        <section class="card">
+            <h2>Place Order</h2>
+            <form id="orderForm">
+                <label>
+                    Product
+                    <select id="orderProduct" required>
+                        <option value="">Select a product</option>
+                    </select>
+                </label>
+                <label>
+                    Quantity
+                    <input id="quantity" type="number" min="1"
+                           step="1" required>
+                </label>
+                <button type="submit">Place Order</button>
+            </form>
+            <p id="orderMessage" class="message"></p>
+        </section>
+
+        <section class="card">
+            <h2>Recent Orders</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Total (₹)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders">
+                        <tr><td colspan="5">Loading orders...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <p id="pageMessage" class="message"></p>
+    </main>
+
+    <footer>CloudStore · Inventory and Order Management System</footer>
+
+    <script>
+        const API = "http://localhost:5000";
+        let products = [];
+
+        async function request(path, options = {}) {
+            const response = await fetch(API + path, options);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || data.error || "Request failed");
+            }
+            return data;
+        }
+
+        async function loadData() {
+            try {
+                const [productData, orderData] = await Promise.all([
+                    request("/products"),
+                    request("/orders")
+                ]);
+
+                products = productData;
+                document.getElementById("connection").textContent =
+                    "● API Connected";
+                document.getElementById("connection").className = "online";
+
+                document.getElementById("productCount").textContent =
+                    products.length;
+                document.getElementById("stockCount").textContent =
+                    products.reduce((sum, p) => sum + Number(p.stock), 0);
+                document.getElementById("orderCount").textContent =
+                    orderData.length;
+
+                document.getElementById("products").innerHTML =
+                    products.map(p => `
+                        <tr>
+                            <td>${p.id}</td>
+                            <td>${escapeHTML(p.name)}</td>
+                            <td>₹${Number(p.price).toLocaleString("en-IN")}</td>
+                            <td>${p.stock}</td>
+                        </tr>
+                    `).join("") ||
+                    '<tr><td colspan="4">No products found.</td></tr>';
+
+                document.getElementById("orderProduct").innerHTML =
+                    '<option value="">Select a product</option>' +
+                    products.filter(p => Number(p.stock) > 0).map(p =>
+                        `<option value="${p.id}">
+                            ${escapeHTML(p.name)} (Stock: ${p.stock})
+                        </option>`
+                    ).join("");
+
+                document.getElementById("orders").innerHTML =
+                    orderData.map(o => `
+                        <tr>
+                            <td>${o.id}</td>
+                            <td>${escapeHTML(o.product)}</td>
+                            <td>${o.quantity}</td>
+                            <td>₹${Number(o.total_price).toLocaleString("en-IN")}</td>
+                            <td>${escapeHTML(o.status)}</td>
+                        </tr>
+                    `).join("") ||
+                    '<tr><td colspan="5">No orders yet.</td></tr>';
+
+                document.getElementById("pageMessage").textContent = "";
+            } catch (error) {
+                document.getElementById("connection").textContent =
+                    "● API Disconnected";
+                document.getElementById("connection").className = "offline";
+                document.getElementById("pageMessage").textContent =
+                    "Could not load data: " + error.message +
+                    ". Check that the backend is running.";
+            }
+        }
+
+        function escapeHTML(value) {
+            return String(value).replace(/[&<>"']/g, c => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;",
+                '"': "&quot;", "'": "&#39;"
+            })[c]);
+        }
+
+        document.getElementById("productForm").addEventListener("submit",
+            async event => {
+                event.preventDefault();
+                const message = document.getElementById("productMessage");
+                try {
+                    await request("/products", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: document.getElementById("name").value.trim(),
+                            price: Number(document.getElementById("price").value),
+                            stock: Number(document.getElementById("stock").value)
+                        })
+                    });
+                    message.textContent = "Product added successfully.";
+                    event.target.reset();
+                    await loadData();
+                } catch (error) {
+                    message.textContent = "Error: " + error.message;
+                }
+            }
+        );
+
+        document.getElementById("orderForm").addEventListener("submit",
+            async event => {
+                event.preventDefault();
+                const message = document.getElementById("orderMessage");
+                try {
+                    const result = await request("/orders", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            product_id: Number(
+                                document.getElementById("orderProduct").value
+                            ),
+                            quantity: Number(
+                                document.getElementById("quantity").value
+                            )
+                        })
+                    });
+                    message.textContent = result.message +
+                        ". Total: ₹" +
+                        Number(result.totalPrice).toLocaleString("en-IN");
+                    event.target.reset();
+                    await loadData();
+                } catch (error) {
+                    message.textContent = "Error: " + error.message;
+                }
+            }
+        );
+
+        loadData();
+    </script>
+</body>
+</html>
