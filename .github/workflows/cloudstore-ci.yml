@@ -38,11 +38,12 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: npm install --package-lock=false
 
-      - name: Check JavaScript syntax
+            - name: Check JavaScript syntax
         working-directory: services/${{ matrix.service }}
+        shell: bash
         run: |
           node --check server.js
-          node --check db.js
+          if [ -f db.js ]; then node --check db.js; fi
 
       - name: Build Docker image
         run: |
@@ -58,5 +59,6 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL
           exit-code: "1"
+
 
 
