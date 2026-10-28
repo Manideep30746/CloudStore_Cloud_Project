@@ -38,7 +38,7 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: npm install --package-lock=false
 
-            - name: Check JavaScript syntax
+      - name: Check JavaScript syntax
         working-directory: services/${{ matrix.service }}
         shell: bash
         run: |
@@ -59,6 +59,3 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL
           exit-code: "1"
-
-
-
