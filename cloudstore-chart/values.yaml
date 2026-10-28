@@ -1,0 +1,18 @@
+namespace: cloudstore-helm-demo
+
+database:
+  image: postgres:17-alpine
+  storage: 1Gi
+  secretName: cloudstore-db-secret
+
+gateway:
+  image: cloudstore-api-gateway
+  nodePort: 31052
+
+services:
+  inventory:
+    image: cloudstore-inventory-service
+  orders:
+    image: cloudstore-order-service
+  users:
+    image: cloudstore-user-service

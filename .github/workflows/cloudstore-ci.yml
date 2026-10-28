@@ -1,0 +1,60 @@
+
+name: CloudStore CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-scan:
+    name: Build and scan ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - inventory-service
+          - order-service
+          - user-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        working-directory: services/${{ matrix.service }}
+        run: npm install --package-lock=false
+
+      - name: Check JavaScript syntax
+        working-directory: services/${{ matrix.service }}
+        run: |
+          node --check server.js
+          node --check db.js
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t cloudstore-${{ matrix.service }}:${{ github.sha }} \
+            ./services/${{ matrix.service }}
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cloudstore-${{ matrix.service }}:${{ github.sha }}
+          format: table
+          vuln-type: os,library
+          severity: CRITICAL
+          exit-code: "1"
